@@ -1,0 +1,100 @@
+version: "3.9"
+
+# Local development stack for SolShare Network.
+#   - postgres     primary store for indexed events
+#   - redis        pub/sub for live event distribution
+#   - api          REST + SSE gateway
+#   - indexer      background poller -> postgres + redis
+#   - web          Vite dev server (npm run dev)
+#
+# Run:   docker compose -f docker-compose.dev.yml up
+# Stop:  docker compose -f docker-compose.dev.yml down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: solshare
+      POSTGRES_PASSWORD: solshare
+      POSTGRES_DB: solshare
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solshare -d solshare"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+      API_HOST: 0.0.0.0
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-TESTNET}
+      STELLAR_HORIZON_URL: ${STELLAR_HORIZON_URL:-https://horizon-testnet.stellar.org}
+      STELLAR_SOROBAN_RPC_URL: ${STELLAR_SOROBAN_RPC_URL:-https://soroban-testnet.stellar.org}
+      API_CORS_ORIGIN: http://localhost:5173
+      INDEXER_REDIS_URL: redis://redis:6379
+      INDEXER_DATABASE_URL: postgres://solshare:solshare@postgres:5432/solshare
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  indexer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.indexer
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      STELLAR_SOROBAN_RPC_URL: ${STELLAR_SOROBAN_RPC_URL:-https://soroban-testnet.stellar.org}
+      INDEXER_DATABASE_URL: postgres://solshare:solshare@postgres:5432/solshare
+      INDEXER_REDIS_URL: redis://redis:6379
+      INDEXER_POLL_INTERVAL_MS: "4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    image: node:22-alpine
+    working_dir: /app/apps/web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      VITE_API_BASE_URL: http://localhost:4000
+      VITE_SOROBAN_RPC_URL: ${VITE_SOROBAN_RPC_URL:-https://soroban-testnet.stellar.org}
+      VITE_HORIZON_URL: ${VITE_HORIZON_URL:-https://horizon-testnet.stellar.org}
+      VITE_NETWORK_PASSPHRASE: ${VITE_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}
+    volumes:
+      - .:/app
+    command: sh -c "corepack enable && pnpm install && pnpm --filter @solshare/web run dev --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    profiles: ["frontend"]
+
+volumes:
+  postgres-data:

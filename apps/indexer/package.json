@@ -1,0 +1,36 @@
+{
+  "name": "@solshare/indexer",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Background worker that polls Soroban RPC `getEvents`, persists events into Postgres, and re-emits via Redis pub/sub.",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@solshare/sdk": "workspace:*",
+    "@solshare/shared": "workspace:*",
+    "drizzle-orm": "^0.34.1",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.0",
+    "pino": "^9.4.0",
+    "pino-pretty": "^11.2.2",
+    "postgres": "^3.4.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.26.2",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
+  }
+}

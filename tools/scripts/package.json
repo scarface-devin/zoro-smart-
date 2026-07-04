@@ -1,0 +1,26 @@
+{
+  "name": "@solshare/tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Operator scripts for setting up Stellar identities, deploying contracts, and inspecting state.",
+  "scripts": {
+    "setup": "tsx setup-stellar-env.ts",
+    "deploy:testnet": "tsx deploy-testnet.ts",
+    "deploy:mainnet": "tsx deploy-mainnet.ts",
+    "inspect": "tsx inspector.ts"
+  },
+  "dependencies": {
+    "@solshare/sdk": "workspace:*",
+    "@solshare/shared": "workspace:*",
+    "@stellar/stellar-sdk": "^13.0.0",
+    "pino": "^9.4.0",
+    "pino-pretty": "^11.2.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}

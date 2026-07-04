@@ -1,0 +1,22 @@
+[package]
+name = "yield-distributor"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Pull-payment yield distributor: distributes stablecoin revenue from arrays to holders of an rwa-token."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rwa-token = { path = "../rwa-token" }
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[[test]]
+name = "test"
+path = "src/test.rs"

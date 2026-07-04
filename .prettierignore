@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+out
+target
+.next
+.turbo
+coverage
+contracts/target
+apps/web/dist
+pnpm-lock.yaml
+**/*.rs.bk

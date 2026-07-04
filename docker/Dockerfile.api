@@ -1,0 +1,32 @@
+# Multi-stage Dockerfile for the @solshare/api service.
+FROM node:22-alpine AS deps
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/sdk/package.json ./packages/sdk/
+RUN corepack enable && pnpm install --frozen-lockfile --filter @solshare/api...
+
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY --from=deps /app /app
+COPY packages/shared ./packages/shared
+COPY packages/sdk ./packages/sdk
+COPY apps/api ./apps/api
+RUN pnpm --filter @solshare/shared run build || true
+RUN pnpm --filter @solshare/sdk run build || true
+RUN pnpm --filter @solshare/api run build
+
+FROM node:22-alpine AS run
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/package.json ./apps/api/
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/shared/package.json ./packages/shared/
+COPY --from=build /app/packages/sdk/dist ./packages/sdk/dist
+COPY --from=build /app/packages/sdk/package.json ./packages/sdk/
+EXPOSE 4000
+USER node
+CMD ["node", "apps/api/dist/index.js"]
