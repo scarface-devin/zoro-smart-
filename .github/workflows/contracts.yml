@@ -1,0 +1,51 @@
+name: Contracts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/contracts.yml"
+  pull_request:
+    paths:
+      - "contracts/**"
+
+jobs:
+  contracts:
+    name: Cargo test, fmt, clippy, WASM build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts
+      - name: Install stellar-cli
+        run: |
+          cargo install --locked stellar-cli --features opt || true
+      - name: cargo fmt
+        working-directory: contracts
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        working-directory: contracts
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: cargo test
+        working-directory: contracts
+        run: cargo test --workspace
+      - name: Build WASM artifacts
+        working-directory: contracts
+        run: |
+          cargo build --workspace --target wasm32-unknown-unknown --release
+          mkdir -p ../artifacts/contracts
+          cp target/wasm32-unknown-unknown/release/*.wasm ../artifacts/contracts/
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: solshare-contracts-wasm
+          path: artifacts/contracts/*.wasm

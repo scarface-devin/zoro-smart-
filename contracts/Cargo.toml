@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = [
+    "rwa-token",
+    "solar-registry",
+    "yield-distributor",
+    "bridge-wrapper",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "Apache-2.0"
+authors = ["SolShare Network Contributors"]
+repository = "https://github.com/solshare-network/solshare-network"
+
+[workspace.dependencies]
+soroban-sdk = { version = "22.0.0", features = ["testutils"] }
+soroban-token-sdk = { version = "22.0.0" }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = false
+strip = true
+lto = true
+
+[profile.release-with-logs]
+inherits = "release"
+debug = true
+strip = false

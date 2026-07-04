@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+out
+.turbo
+coverage
+target
+contracts
+apps/web/dist
+apps/web/public/build
+.eslintrc.cjs

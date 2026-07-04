@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "useDefineForClassFields": true,
+    "verbatimModuleSyntax": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@solshare/shared": ["./packages/shared/src/index.ts"],
+      "@solshare/shared/*": ["./packages/shared/src/*"],
+      "@solshare/sdk": ["./packages/sdk/src/index.ts"],
+      "@solshare/sdk/*": ["./packages/sdk/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", "target"]
+}

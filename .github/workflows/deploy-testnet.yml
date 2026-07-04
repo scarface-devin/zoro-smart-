@@ -1,0 +1,49 @@
+name: Deploy testnet
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DEPLOY" to confirm'
+        required: true
+        default: 'NO'
+
+jobs:
+  deploy-testnet:
+    if: github.event.inputs.confirm == 'DEPLOY'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install Rust + stellar-cli
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt
+      - run: cargo install --locked stellar-cli --features opt
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build WASM contracts
+        working-directory: contracts
+        run: |
+          cargo build --workspace --target wasm32-unknown-unknown --release
+
+      - name: Deploy to TESTNET
+        env:
+          SOLSHARE_DEPLOYER_SECRET: ${{ secrets.SOLSHARE_DEPLOYER_SECRET }}
+          STELLAR_NETWORK: TESTNET
+        run: pnpm --filter @solshare/tools run deploy:testnet
+
+      - name: Upload deployment map
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testnet-deployment
+          path: .stellar/deployments/testnet.json

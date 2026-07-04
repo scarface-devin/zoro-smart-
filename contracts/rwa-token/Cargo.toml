@@ -1,0 +1,21 @@
+[package]
+name = "rwa-token"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "SEP-41 fungible token representing fractional ownership of a single urban solar array."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[[test]]
+name = "test"
+path = "src/test.rs"
