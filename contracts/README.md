@@ -27,6 +27,8 @@ Optimised WASM artefacts are written to `target/wasm32-unknown-unknown/release/`
 cargo test --workspace
 ```
 
+Soroban test snapshots in `contracts/*/test_snapshots/test/*.json` are gitignored and regenerated locally on every `cargo test` run — there is no committed baseline to compare against.
+
 ## Deploy
 
 See [`tools/scripts/README.md`](../tools/scripts/README.md) and
