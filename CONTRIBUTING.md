@@ -53,6 +53,39 @@ commonly use: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`,
 - Contract addresses, Horizon / Soroban RPC URLs, and admin keys all
   live in `.env` (see `.env.example`).
 
+## Project bootstrap scripts
+
+`tools/scripts/` holds two idempotent bash helpers used to seed the
+project after a fresh clone. They are intended to be run by the repo
+maintainer, not by every contributor — but they are checked in so the
+process is reproducible across environments.
+
+- **`tools/scripts/create-issues.sh`** — reads the five files in
+  `docs/issues/0001-*.md … 0005-*.md`, ensures the required project
+  labels exist (`bug`, `enhancement`, `good first issue`, `documentation`,
+  `frontend`, `api`, `sdk`, `soroban`, `bridge`, `help wanted`,
+  `needs-triage`, `priority: high/medium/low`), and opens one
+  GitHub issue per file with the labels and body parsed from the
+  frontmatter.
+
+- **`tools/scripts/setup-project-board.sh`** — creates the
+  `v0.2` / `v0.3` / `v0.4` milestones and the `status: backlog /
+  in progress / review / done` labels, then assigns every open
+  issue to its milestone and initial status column. It will
+  additionally create the `SolShare Roadmap` project board and
+  populate its columns if the gh CLI integration has the `project`
+  scope; otherwise it stops short of the board itself and prints
+  a one-line instruction to create it via the web UI. Both
+  scripts are idempotent — re-running them is a no-op once the
+  repo is bootstrapped.
+
+To re-run after a fresh clone:
+
+```bash
+bash tools/scripts/create-issues.sh
+bash tools/scripts/setup-project-board.sh
+```
+
 ## Code of conduct
 
 Be kind, assume good faith, and focus on the work. Harassment of any
