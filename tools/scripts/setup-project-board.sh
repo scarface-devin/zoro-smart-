@@ -123,24 +123,28 @@ for issue in 2 3 4 5 6; do
   ms="${ISSUE_MILESTONE[$issue]}"
   st="${ISSUE_STATUS[$issue]}"
 
-  current_labels=$(gh issue view "$issue" --repo "$REPO" --json labels -q '.labels[].name' 2>/dev/null)
+  # Filter to status:* labels only (via jq) AND preserve spaces in label
+  # names by feeding them through `while read` instead of the shell's
+  # word-splitting `for` loop. Without this, a label named
+  # "status: backlog" gets split into "status:" + "backlog" and the
+  # remove-label call fails with "'status:' not found".
+  existing_status_labels=$(gh issue view "$issue" --repo "$REPO" --json labels -q '.labels[].name | select(startswith("status:"))' 2>/dev/null)
 
   args=()
   if [ -n "$ms" ]; then
     args+=(--milestone "$ms")
   fi
-  # Remove any existing status:* label, then add the new one
-  for l in $current_labels; do
-    case "$l" in
-      status:*)
-        args+=(--remove-label "$l")
-        ;;
-    esac
-  done
+  while IFS= read -r l; do
+    [ -n "$l" ] && args+=(--remove-label "$l")
+  done <<< "$existing_status_labels"
   args+=(--add-label "$st")
 
   echo "Issue #$issue  -> milestone=$ms  status=$st"
-  gh issue edit "$issue" --repo "$REPO" "${args[@]}" 2>&1 | head -3
+  # Don't truncate gh error output: a `head -3` here previously hid the
+  # full "'status:' not found" error that caused silent label-assignment
+  # failures. The next 4 lines (the gh issue edit + 3 add-label calls)
+  # are short enough that full output is fine.
+  gh issue edit "$issue" --repo "$REPO" "${args[@]}"
 
   # Also add the issue to the project board if we managed to create one
   if [ "$PROJECT_OK" = "1" ]; then
