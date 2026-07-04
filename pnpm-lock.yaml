@@ -63,15 +63,24 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.4
+        version: 9.39.4
       '@types/node':
         specifier: ^22.7.5
         version: 22.20.0
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.23.0
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.62.1
+        version: 8.62.1(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3)
       vitest:
         specifier: ^2.1.2
         version: 2.1.9(@types/node@22.20.0)
@@ -106,18 +115,27 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.4
+        version: 9.39.4
       '@types/pg':
         specifier: ^8.11.10
         version: 8.20.0
       drizzle-kit:
         specifier: ^0.26.2
         version: 0.26.2
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4(jiti@1.21.7)
       tsx:
         specifier: ^4.19.1
         version: 4.23.0
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.62.1
+        version: 8.62.1(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3)
       vitest:
         specifier: ^2.1.2
         version: 2.1.9(@types/node@22.20.0)
@@ -158,6 +176,9 @@ importers:
         specifier: ^2.5.3
         version: 2.6.1
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.4
+        version: 9.39.4
       '@types/react':
         specifier: ^18.3.12
         version: 18.3.31
@@ -170,6 +191,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.20
         version: 10.5.2(postcss@8.5.16)
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4(jiti@1.21.7)
       postcss:
         specifier: ^8.4.47
         version: 8.5.16
@@ -179,6 +203,9 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.62.1
+        version: 8.62.1(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3)
       vite:
         specifier: ^5.4.10
         version: 5.4.21(@types/node@22.20.0)
@@ -198,12 +225,21 @@ importers:
         specifier: ^13.0.0
         version: 13.3.0
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.4
+        version: 9.39.4
       '@types/node':
         specifier: ^22.7.5
         version: 22.20.0
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4(jiti@1.21.7)
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.62.1
+        version: 8.62.1(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3)
       vitest:
         specifier: ^2.1.2
         version: 2.1.9(@types/node@22.20.0)
