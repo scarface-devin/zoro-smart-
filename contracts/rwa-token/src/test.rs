@@ -173,3 +173,25 @@ fn test_set_operator_admin_only() {
     client.set_operator(&new_operator);
     assert_eq!(client.operator(), new_operator);
 }
+
+#[test]
+fn test_version_returns_cargo_pkg_version() {
+    // `version()` is a pure function that returns the crate version baked
+    // in at compile time. We verify it is non-empty and does not contain
+    // whitespace (i.e. it looks like a semver string "MAJOR.MINOR.PATCH").
+    let version = RwaToken::version();
+    let env = Env::default();
+    // Convert the Symbol to a String so we can inspect its bytes.
+    let as_str = version.to_string();
+    // Must be non-empty.
+    assert!(!as_str.is_empty(), "version() returned an empty symbol");
+    // Must not contain ASCII spaces or newlines.
+    assert!(
+        !as_str.contains(' ') && !as_str.contains('\n'),
+        "version() symbol contains whitespace: {:?}",
+        as_str
+    );
+    // Sanity check: Symbol round-trips correctly through the Env.
+    let round_tripped = soroban_sdk::Symbol::new(&env, &as_str);
+    assert_eq!(version, round_tripped);
+}

@@ -228,9 +228,21 @@ impl RwaToken {
         if amount < 0 {
             return Err(TokenError::MathOverflow);
         }
+        let key = DataKey::Allowance(owner.clone(), spender.clone());
+        env.storage().persistent().set(&key, &amount);
+        // Keep the allowance entry alive at least until `expiration_ledger`.
+        // The minimum TTL is 17_280 ledgers (~1 day); the target is derived
+        // from `expiration_ledger` relative to the current ledger so the
+        // entry is evicted naturally once the approval expires.
+        let current = env.ledger().sequence();
+        let target = if expiration_ledger > current {
+            (expiration_ledger - current) as u64
+        } else {
+            17_280u64
+        };
         env.storage()
             .persistent()
-            .set(&DataKey::Allowance(owner.clone(), spender.clone()), &amount);
+            .extend_ttl(&key, 17_280, target.max(17_280));
         ApproveEvent {
             from: owner,
             to: spender,
