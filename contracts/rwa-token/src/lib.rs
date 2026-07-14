@@ -333,6 +333,94 @@ impl RwaToken {
         Ok(())
     }
 
+    /// Operator-forced burn from any account (compliance / rebalancing).
+    pub fn burn_from(
+        env: Env,
+        from: Address,
+        amount: i128,
+    ) -> Result<(), TokenError> {
+        if amount <= 0 {
+            return Err(TokenError::ZeroAmount);
+        }
+        let operator: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Operator)
+            .ok_or(TokenError::NotInitialized)?;
+        operator.require_auth();
+        let balance: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Balance(from.clone()))
+            .unwrap_or(0);
+        if balance < amount {
+            return Err(TokenError::InsufficientBalance);
+        }
+        env.storage()
+            .persistent()
+            .set(&DataKey::Balance(from.clone()), &(balance - amount));
+        let total = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalSupply)
+            .unwrap_or(0i128);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalSupply, &(total - amount));
+        env.events()
+            .publish((symbol_short!("burn_from"), from, operator), amount);
+        Ok(())
+    }
+
+    // --------------------------------------------------------------------
+    // Batch operations
+    // --------------------------------------------------------------------
+
+    /// Gas-efficient batch transfer: send amounts[i] to recipients[i] from
+    /// the caller. Recipients and amounts must be the same length.
+    pub fn transfer_batch(
+        env: Env,
+        from: Address,
+        recipients: soroban_sdk::Vec<Address>,
+        amounts: soroban_sdk::Vec<i128>,
+    ) -> Result<(), TokenError> {
+        if recipients.len() != amounts.len() {
+            return Err(TokenError::MathOverflow);
+        }
+        from.require_auth();
+        for i in 0..recipients.len() {
+            let to = recipients.get(i).unwrap();
+            let amount = amounts.get(i).unwrap();
+            if amount <= 0 {
+                return Err(TokenError::ZeroAmount);
+            }
+            Self::move_balance(&env, &from, &to, amount)?;
+            env.events().publish(
+                (symbol_short!("transfer"), from.clone(), to),
+                amount,
+            );
+        }
+        Ok(())
+    }
+
+    /// Batch balance query: return balances for a list of accounts.
+    pub fn balance_of_batch(
+        env: Env,
+        accounts: soroban_sdk::Vec<Address>,
+    ) -> soroban_sdk::Vec<i128> {
+        let mut results = soroban_sdk::Vec::new(&env);
+        for i in 0..accounts.len() {
+            let acc = accounts.get(i).unwrap();
+            let bal: i128 = env
+                .storage()
+                .persistent()
+                .get(&DataKey::Balance(acc))
+                .unwrap_or(0);
+            results.push_back(bal);
+        }
+        results
+    }
+
     /// Update the operator key. Admin only.
     pub fn set_operator(env: Env, new_operator: Address) -> Result<(), TokenError> {
         let admin: Address = env
