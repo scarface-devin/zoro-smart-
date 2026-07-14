@@ -9,6 +9,8 @@ Stellar in seconds.
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![pnpm](https://img.shields.io/badge/managed_with-pnpm-ffd86b)](https://pnpm.io)
 [![Soroban](https://img.shields.io/badge/powered_by-Soroban-3fc06a)](https://soroban.stellar.org)
+[![good first issues](https://img.shields.io/github/issues/scarface-devin/zoro-smart-/good%20first%20issue?color=7057ff&label=good%20first%20issues)](https://github.com/scarface-devin/zoro-smart-/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
+[![CI](https://github.com/scarface-devin/zoro-smart-/actions/workflows/ci.yml/badge.svg)](https://github.com/scarface-devin/zoro-smart-/actions/workflows/ci.yml)
 
 ---
 
@@ -189,12 +191,26 @@ Every Soroban contract ships with native `#[test]`s in
 
 ## Contributing
 
+We welcome contributors of all skill levels — whether you're a Solidity veteran
+or writing your first smart contract. Here's how to get started:
+
+### Quick start for contributors
+
+1. **Find an issue** — browse [good first issues](https://github.com/scarface-devin/zoro-smart-/issues?q=is%3Aopen+label%3A%22good+first+issue%22) on GitHub. Look for the `good first issue` label — these are small, well-scoped tasks with clear acceptance criteria.
+2. **Set up locally** — `pnpm install` then `pnpm dev:web`. The dashboard runs at `localhost:5173`. Append `?demo=1` to preview without a backend.
+3. **Make your change** — follow the branch naming and [commit conventions](CONTRIBUTING.md#commit-messages) in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+4. **Validate** — `pnpm -r run typecheck && pnpm -r test`. Everything must pass.
+5. **Open a PR** — reference the issue, describe the change, and attach a screenshot if the dashboard is involved.
+
+> **New to Web3?** Start with a `good first issue` tagged `documentation` —
+> they touch only markdown and let you learn the codebase without wrestling
+> with contracts.
+
 Bug reports, feature requests, and good first issues all live under
 [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/). A curated
-backlog of open issues lives in [`docs/issues/`](docs/issues/) — start
-there if you want to pick something up. The dashboard accepts an
-opt-in `?demo=1` flag so contributors can preview UI changes without
-standing up the API.
+backlog of open issues lives on the [GitHub issues board](https://github.com/scarface-devin/zoro-smart-/issues) — start
+there if you want to pick something up. Full contributor guidelines are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ### Project board + milestones
 
