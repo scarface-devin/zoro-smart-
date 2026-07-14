@@ -16,13 +16,8 @@ import {
   YieldDistributorContract,
   BridgeWrapperContract,
   GovernanceClient,
-  TokensClient,
 } from './contracts/index.js';
 import { SimulationAccount, fundSimulationAccount } from './simulation-account.js';
-import { TransactionPipeline } from './transaction-pipeline.js';
-import { CircuitBreaker, withRetry } from './retry.js';
-import { paginate, paginateAll } from './pagination.js';
-import { decodeEvent, decodeEvents, type ContractTags } from './event-decoder.js';
 
 export type SolShareNetwork = StellarNetwork;
 
@@ -83,24 +78,6 @@ export class SolShareClient {
   readonly yieldDistributor: YieldDistributorContract;
   readonly bridge: BridgeWrapperContract;
   readonly governance: GovernanceClient;
-  /**
-   * Mutable so `setSimulationAccount` can rebind with the new account
-   * reference. Treat as effectively-readonly from outside the class.
-   */
-  tokens: TokensClient;
-  tx: TransactionPipeline;
-  readonly retry: {
-    withRetry: typeof withRetry;
-    CircuitBreaker: typeof CircuitBreaker;
-  };
-  readonly pagination: {
-    paginateAll: typeof paginateAll;
-    paginate: typeof paginate;
-  };
-  readonly events: {
-    decodeEvent: typeof decodeEvent;
-    decodeEvents: typeof decodeEvents;
-  };
 
   constructor(opts: SolShareClientOptions = {}) {
     this.network = resolveNetwork(opts.network ?? process.env.STELLAR_NETWORK);
@@ -156,19 +133,6 @@ export class SolShareClient {
       this.networkPassphrase,
       this.simulationAccount,
     );
-    this.tokens = new TokensClient({
-      sorobanRpcUrl: this.sorobanRpcUrl,
-      networkPassphrase: this.networkPassphrase,
-      simulationAccount: this.simulationAccount,
-    });
-    this.tx = new TransactionPipeline({
-      sorobanRpcUrl: this.sorobanRpcUrl,
-      networkPassphrase: this.networkPassphrase,
-      simulationAccount: this.simulationAccount,
-    });
-    this.retry = { withRetry, CircuitBreaker };
-    this.pagination = { paginateAll, paginate };
-    this.events = { decodeEvent, decodeEvents };
   }
 
   static forTestnet(): SolShareClient {
@@ -198,11 +162,6 @@ export class SolShareClient {
    * account they manage — can do so without losing the existing
    * sequence number. Pass the secret key to enable subsequent
    * `fundSimulationAccount()` calls; omit it for read-only use.
-   *
-   * `tx` and `tokens` are rebuilt here so they pick up the new account
-   * by reference. Existing instances of `SimulationAccount` (mutated via
-   * `.set(...)`) keep working without recreate because `tx`/`tokens`
-   * read the latest account via the getter.
    */
   setSimulationAccount(account: SimulationAccount): void {
     this.simulationAccount = account;
@@ -213,18 +172,6 @@ export class SolShareClient {
     this.yieldDistributor.setSimulationAccount(account);
     this.bridge.setSimulationAccount(account);
     this.governance.setSimulationAccount(account);
-    // Rebind tx/tokens so any caller using simulation-aware defaults
-    // picks up the new account.
-    this.tokens = new TokensClient({
-      sorobanRpcUrl: this.sorobanRpcUrl,
-      networkPassphrase: this.networkPassphrase,
-      simulationAccount: account,
-    });
-    this.tx = new TransactionPipeline({
-      sorobanRpcUrl: this.sorobanRpcUrl,
-      networkPassphrase: this.networkPassphrase,
-      simulationAccount: account,
-    });
   }
 
   /**
@@ -241,20 +188,5 @@ export class SolShareClient {
       );
     }
     return fundSimulationAccount(this.simulationAccount, this.network);
-  }
-
-  /**
-   * Map the bound contract addresses onto the `ContractTags` shape used
-   * by `events.decode*` to disambiguate events with shared topics
-   * (e.g. `transfer` from the rwa-token vs the bridge-wrapper).
-   */
-  contractTags(): ContractTags {
-    return {
-      rwaToken: this.contracts.rwaToken || undefined,
-      registry: this.contracts.solarRegistry || undefined,
-      yield: this.contracts.yieldDistributor || undefined,
-      bridge: this.contracts.bridgeWrapper || undefined,
-      governance: this.contracts.governance || undefined,
-    };
   }
 }
