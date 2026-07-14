@@ -1,17 +1,48 @@
 # Contributing to SolShare Network
 
-Thanks for taking a look! The SolShare monorepo is a pnpm workspace with
-four Soroban contracts and three TypeScript apps. Everything you need
-to get up and running is in [`README.md`](README.md).
+Thanks for taking a look! SolShare Network is a Soroban-powered RWA engine
+for crowdfunded urban solar arrays — and we welcome contributors of all
+skill levels.
+
+## Getting started in 5 minutes
+
+1. **Clone & install** — `pnpm install` in the repo root.
+2. **Pick an issue** — browse [good first issues](https://github.com/scarface-devin/zoro-smart-/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
+   on GitHub. Look for the `good first issue` label — these are small,
+   well-scoped tasks with clear acceptance criteria and mentorship notes.
+3. **Start the dashboard** — `pnpm dev:web` (runs at `localhost:5173`).
+   Append `?demo=1` to preview the bridge simulator without a backend.
+4. **Run the checks** — `pnpm -r run typecheck && pnpm -r test`.
+   Everything must pass before opening a PR.
+
+> **Never contributed to a Web3 project before?** Start with a
+> `good first issue` tagged `documentation` — they touch only markdown
+> and let you learn the codebase without wrestling with contracts.
+
+The SolShare monorepo is a pnpm workspace with four Soroban contracts
+and three TypeScript apps. Everything you need to get up and running is
+in [`README.md`](README.md).
+
+## Finding issues to work on
+
+- **[Good first issues on GitHub](https://github.com/scarface-devin/zoro-smart-/issues?q=is%3Aopen+label%3A%22good+first+issue%22)** —
+  the live issue board with labels, milestones, and status tracking.
+- **[`docs/issues/`](docs/issues/)** — the source markdown files that
+  seed the GitHub issues. Useful for understanding the full context
+  behind each issue.
+- If you want to work on something not listed, open a feature request
+  via [`.github/ISSUE_TEMPLATE/feature_request.md`](.github/ISSUE_TEMPLATE/feature_request.md)
+  first.
+- **[SolShare Roadmap project board](https://github.com/scarface-devin/zoro-smart-/projects)** —
+  see what's in progress and what's coming next across v0.2, v0.3, and v0.4.
+  (If the board doesn't exist yet, a maintainer can create it via the
+  Projects tab with columns: Backlog, In Progress, Review, Done.)
 
 ## Workflow
 
-1. **Pick an issue.** Browse [`docs/issues/`](docs/issues/) — every
-   entry has an acceptance checklist and a `good first issue` label
-   where appropriate. If you want to work on something not listed,
-   open a feature request via
-   [`.github/ISSUE_TEMPLATE/feature_request.md`](.github/ISSUE_TEMPLATE/feature_request.md)
-   first.
+1. **Assign yourself.** Comment on the issue so maintainers know you're
+   working on it. If you have triage permissions you can self-assign;
+   otherwise a maintainer will pick it up.
 2. **Branch.** Use a topic branch off `main` named after the issue
    (`0003-frontend-sse-live-feed`, `fix/soroban-decimal-overflow`, …).
 3. **Develop.** Follow the existing code style — `pnpm lint` runs
