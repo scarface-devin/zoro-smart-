@@ -1,10 +1,12 @@
 import { getDb } from '../db/client.js';
+import { notifications } from '../db/schema.js';
 import { logger } from '../logger.js';
 import type { SorobanEvent } from '@solshare/sdk';
 
 /**
  * Materialise governance contract events into the database.
- * Handles proposal creation, voting, and execution lifecycle events.
+ * Creates notifications for proposal creation and voting events
+ * so users see timely updates in their notification feed.
  */
 export async function handleGovernanceEvent(event: SorobanEvent): Promise<void> {
   const db = getDb();
@@ -31,7 +33,26 @@ export async function handleGovernanceEvent(event: SorobanEvent): Promise<void> 
           },
           'governance: proposal created',
         );
-        void [db, val]; // Placeholder: production would upsert into governance tables
+
+        // Create a notification for all governance participants.
+        if (val.proposer && val.title && val.proposal_id) {
+          await db
+            .insert(notifications)
+            .values({
+              recipient: val.proposer,
+              title: `Proposal created: ${val.title.slice(0, 100)}`,
+              body: `Your proposal "${val.title}" is now live for voting.` +
+                (val.description ? ` ${val.description.slice(0, 200)}` : ''),
+              category: 'governance',
+              severity: 'info',
+              read: false,
+              actionUrl: `/governance/${val.proposal_id}`,
+              actionLabel: 'View proposal',
+              arrayId: val.array_id ?? null,
+              sourcePagingToken: event.pagingToken,
+            })
+            .onConflictDoNothing();
+        }
       } catch (err) {
         logger.warn({ err }, 'governance propose event insert failed');
       }
@@ -54,6 +75,25 @@ export async function handleGovernanceEvent(event: SorobanEvent): Promise<void> 
           },
           'governance: vote cast',
         );
+
+        // Notify the voter that their vote was recorded.
+        if (val.voter && val.proposal_id && val.choice) {
+          await db
+            .insert(notifications)
+            .values({
+              recipient: val.voter,
+              title: `Vote cast: ${val.choice}`,
+              body: `You voted "${val.choice}" on proposal.` +
+                (val.voting_power ? ` Voting power: ${val.voting_power}.` : ''),
+              category: 'governance',
+              severity: 'success',
+              read: false,
+              actionUrl: `/governance/${val.proposal_id}`,
+              actionLabel: 'View proposal',
+              sourcePagingToken: event.pagingToken,
+            })
+            .onConflictDoNothing();
+        }
       } catch (err) {
         logger.warn({ err }, 'governance vote event insert failed');
       }
@@ -70,6 +110,23 @@ export async function handleGovernanceEvent(event: SorobanEvent): Promise<void> 
           { proposal: val.proposal_id, executor: val.executed_by },
           'governance: proposal executed',
         );
+
+        if (val.proposal_id && val.executed_by) {
+          await db
+            .insert(notifications)
+            .values({
+              recipient: val.executed_by,
+              title: 'Proposal executed',
+              body: 'The proposal has been successfully executed on-chain.',
+              category: 'governance',
+              severity: 'success',
+              read: false,
+              actionUrl: `/governance/${val.proposal_id}`,
+              actionLabel: 'View proposal',
+              sourcePagingToken: event.pagingToken,
+            })
+            .onConflictDoNothing();
+        }
       } catch (err) {
         logger.warn({ err }, 'governance execute event insert failed');
       }
@@ -87,6 +144,25 @@ export async function handleGovernanceEvent(event: SorobanEvent): Promise<void> 
           { proposal: val.proposal_id, reason: val.reason },
           'governance: proposal cancelled',
         );
+
+        if (val.proposal_id && val.cancelled_by) {
+          await db
+            .insert(notifications)
+            .values({
+              recipient: val.cancelled_by,
+              title: 'Proposal cancelled',
+              body: val.reason
+                ? `Proposal was cancelled: ${val.reason}`
+                : 'The proposal has been cancelled.',
+              category: 'governance',
+              severity: 'warning',
+              read: false,
+              actionUrl: `/governance/${val.proposal_id}`,
+              actionLabel: 'View proposal',
+              sourcePagingToken: event.pagingToken,
+            })
+            .onConflictDoNothing();
+        }
       } catch (err) {
         logger.warn({ err }, 'governance cancel event insert failed');
       }
