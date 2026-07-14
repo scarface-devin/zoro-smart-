@@ -33,6 +33,12 @@ pub enum TokenError {
     InsufficientBalance = 6,
     /// Requested amount was zero.
     ZeroAmount = 7,
+    /// Account is frozen and cannot transfer.
+    AccountFrozen = 8,
+    /// Global transfers are paused.
+    TransfersPaused = 9,
+    /// Supply cap exceeded.
+    SupplyCapExceeded = 10,
 }
 
 // ============================================================================
@@ -54,6 +60,12 @@ pub enum DataKey {
     /// Total supply tracker (required because SEP-41 has no `totalSupply()`,
     /// but RWA dashboards need to know it).
     TotalSupply,
+    /// Per-account freeze status.
+    Frozen(Address),
+    /// Global transfer pause flag.
+    Paused,
+    /// Maximum token supply (0 = unlimited).
+    SupplyCap,
 }
 
 // ============================================================================
@@ -327,6 +339,50 @@ impl RwaToken {
     }
 
     // --------------------------------------------------------------------
+    // Freeze / unfreeze (admin)
+    // --------------------------------------------------------------------
+
+    /// Freeze an account, preventing it from sending or receiving tokens.
+    pub fn freeze_account(env: Env, account: Address) -> Result<(), TokenError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(TokenError::NotInitialized)?;
+        admin.require_auth();
+        env.storage()
+            .persistent()
+            .set(&DataKey::Frozen(account.clone()), &true);
+        env.events()
+            .publish((symbol_short!("freeze"),), account);
+        Ok(())
+    }
+
+    /// Unfreeze a previously frozen account.
+    pub fn unfreeze_account(env: Env, account: Address) -> Result<(), TokenError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(TokenError::NotInitialized)?;
+        admin.require_auth();
+        env.storage()
+            .persistent()
+            .remove(&DataKey::Frozen(account.clone()));
+        env.events()
+            .publish((symbol_short!("unfreeze"),), account);
+        Ok(())
+    }
+
+    /// Check whether an account is currently frozen.
+    pub fn is_frozen(env: Env, account: Address) -> bool {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Frozen(account))
+            .unwrap_or(false)
+    }
+
+    // --------------------------------------------------------------------
     // Internal helpers
     // --------------------------------------------------------------------
 
@@ -336,6 +392,32 @@ impl RwaToken {
         to: &Address,
         amount: i128,
     ) -> Result<(), TokenError> {
+        // Check global pause.
+        if env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
+        {
+            return Err(TokenError::TransfersPaused);
+        }
+        // Check if either account is frozen.
+        if env
+            .storage()
+            .persistent()
+            .get(&DataKey::Frozen(from.clone()))
+            .unwrap_or(false)
+        {
+            return Err(TokenError::AccountFrozen);
+        }
+        if env
+            .storage()
+            .persistent()
+            .get(&DataKey::Frozen(to.clone()))
+            .unwrap_or(false)
+        {
+            return Err(TokenError::AccountFrozen);
+        }
         let from_balance: i128 = env
             .storage()
             .persistent()
