@@ -11,6 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **governance**: New governance module with proposal creation, voting, tallying,
+  and execution. Includes shared types (`GovernanceProposal`, `ProposalVote`,
+  `ProposalTally`), SDK contract client (`GovernanceClient`), API routes, indexer
+  event handler, and Governance web page with create-proposal modal.
+- **portfolio**: Portfolio tracking feature showing holder investments across all
+  solar arrays. Includes shared types (`PortfolioSummary`, `PortfolioHolding`),
+  API endpoint for holdings aggregation, and Portfolio web page with stats and
+  quick actions.
+- **notifications**: Real-time notification system with in-app notification bell,
+  unread badge, category filtering, and mark-read functionality. Includes shared
+  types, API routes for list/count/mark-read, and SSE-ready architecture.
+- **search**: Global search with `Cmd+K` shortcut, searching across arrays and
+  governance proposals. Includes shared types, API endpoint with caching, and
+  `SearchBar` component with keyboard-first UX.
+- **analytics**: Analytics API with volume tracking, top arrays ranking, and
+  yield projections. Includes shared types and three REST endpoints.
+- **web/docs**: FAQ page with category-filtered accordion and Docs page with
+  protocol reference, bridge guide, governance, and API documentation sections.
+- **web/nav**: Expanded navigation with Portfolio, Governance, FAQ, and Docs
+  links in both header and sidebar. Notification bell integrated into header.
 - **yield-distributor**: `funder()` and `total_claimed()` read helpers now
   exposed on the public contract surface. The SDK `YieldDistributorContract`
   wrapper includes typed methods for both getters. ([#0e88d01])
