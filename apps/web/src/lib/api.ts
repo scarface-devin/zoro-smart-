@@ -89,7 +89,14 @@ export const api = {
   },
   search: (q: string) =>
     request<{ query: string; results: { id: string; type: string; title: string; subtitle: string; url: string }[]; total: number; tookMs: number }>(`/search?q=${encodeURIComponent(q)}`),
-  notificationCount: (address: string) =>
+  /** Analytics */
+  analyticsVolume: (days = 30) =>
+    request<{ totalBridgeVolumeUsdc: string; totalWraps: number; totalUnwraps: number; daily: unknown[]; topChains: unknown[]; days: number }>(`/analytics/volume?days=${days}`),
+  analyticsTopArrays: (params: { limit?: number; sort?: string } = {}) =>
+    request<{ entries: { id: string; name: string; status: string; ratedCapacityW: number; yieldPerShare: string; totalShares: string; co2OffsetKgPerYear: number }[]; sortBy: string; limit: number }>(
+      `/analytics/top-arrays?limit=${params.limit ?? 5}&sort=${params.sort ?? 'yield'}`,
+    ),
+  /** Notifications */
     request<NotificationCount>(`/notifications/count?address=${encodeURIComponent(address)}`),
   markNotificationsRead: (body: { address: string; ids: string[]; markAll: boolean }) =>
     request<{ status: string }>('/notifications/read', {
