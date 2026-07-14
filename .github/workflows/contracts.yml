@@ -34,10 +34,10 @@ jobs:
         run: cargo fmt --all -- --check
       - name: cargo clippy
         working-directory: contracts
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --features testutils -- -D warnings
       - name: cargo test
         working-directory: contracts
-        run: cargo test --workspace
+        run: cargo test --workspace --features testutils
       - name: Build WASM artifacts
         working-directory: contracts
         run: |

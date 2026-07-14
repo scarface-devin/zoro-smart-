@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use super::*;
-use soroban_sdk::{testutils::Address as _, Env, String};
+use crate::{YieldDistributor, YieldDistributorClient};
+use soroban_sdk::{testutils::Address as _, Address, Env, String};
 
 fn deploy_rwa_token_with_supply(env: &Env, holder: &Address, supply: i128) -> Address {
     let rwa_id = env.register(rwa_token::RwaToken, ());

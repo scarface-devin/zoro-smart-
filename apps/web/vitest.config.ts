@@ -15,5 +15,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.test.{ts,tsx}'],
+    // Lets `pnpm -r --filter ./apps/* run test` (the CI filter) exit 0
+    // before any test fixtures are added. Drop once real tests land.
+    passWithNoTests: true,
   },
 });

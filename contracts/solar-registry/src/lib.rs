@@ -9,7 +9,7 @@
 //!   `Decommissioned` — physical removal; admin-signed only.
 
 use soroban_sdk::{
-    contract, contractimpl, contracterror, contracttype, symbol_short, Address, BytesN, Env,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, BytesN, Env,
     String, Vec,
 };
 
@@ -29,6 +29,31 @@ pub enum RegistryError {
     EmptyArrayId = 7,
     /// Maintenance event not found.
     MaintenanceEventNotFound = 8,
+}
+
+impl From<RegistryError> for soroban_sdk::Error {
+    fn from(e: RegistryError) -> Self {
+        // TODO: surface a typed error code in the host error once the
+        // soroban-sdk macro exposes the variant discriminant directly.
+        soroban_sdk::Error::from_contract_error(e as u32)
+    }
+}
+
+impl From<soroban_sdk::Error> for RegistryError {
+    fn from(_e: soroban_sdk::Error) -> Self {
+        // TODO: map specific host error codes back to RegistryError variants
+        // once the soroban-sdk macro exposes the contract error code.
+        RegistryError::Unauthorized
+    }
+}
+
+impl From<&RegistryError> for soroban_sdk::Error {
+    fn from(e: &RegistryError) -> Self {
+        // The `#[contractimpl]` macro in soroban-sdk v22 calls
+        // `Into<soroban_sdk::Error>` on error references, not values,
+        // when constructing the host error from a borrowed `Result`.
+        soroban_sdk::Error::from_contract_error(*e as u32)
+    }
 }
 
 // ============================================================================
@@ -271,10 +296,8 @@ impl SolarRegistry {
         env.storage()
             .persistent()
             .set(&DataKey::Array(id.clone()), &array);
-        env.events().publish(
-            (symbol_short!("update"), id),
-            new_status,
-        );
+        env.events()
+            .publish((symbol_short!("update"), id), new_status);
         Ok(())
     }
 

@@ -9,7 +9,9 @@
 import { Redis } from 'ioredis';
 import { logger } from './logger.js';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// `any` on private module state keeps the redis pub/sub client untyped —
+// fine for a thin publish wrapper. `@typescript-eslint/no-explicit-any`
+// is not enabled in the recommended preset, so no eslint-disable is needed.
 let _pub: any = null;
 
 export async function connectRedis(): Promise<Redis | null> {

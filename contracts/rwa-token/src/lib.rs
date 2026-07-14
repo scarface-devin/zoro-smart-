@@ -9,7 +9,7 @@
 //! can mint shares sold in a crowdfunding round.
 
 use soroban_sdk::{
-    contract, contractimpl, contracterror, contracttype, symbol_short, Address, Env, String, Symbol,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol,
 };
 
 // ============================================================================
@@ -39,6 +39,33 @@ pub enum TokenError {
     TransfersPaused = 9,
     /// Supply cap exceeded.
     SupplyCapExceeded = 10,
+}
+
+impl From<TokenError> for soroban_sdk::Error {
+    fn from(e: TokenError) -> Self {
+        // TODO: surface a typed error code in the host error once the
+        // soroban-sdk macro exposes the variant discriminant directly.
+        soroban_sdk::Error::from_contract_error(e as u32)
+    }
+}
+
+impl From<soroban_sdk::Error> for TokenError {
+    fn from(_e: soroban_sdk::Error) -> Self {
+        // TODO: map specific host error codes back to TokenError variants
+        // once the soroban-sdk macro exposes the contract error code.
+        TokenError::Unauthorized
+    }
+}
+
+impl From<&TokenError> for soroban_sdk::Error {
+    fn from(e: &TokenError) -> Self {
+        // The `#[contractimpl]` macro in soroban-sdk v22 calls
+        // `Into<soroban_sdk::Error>` on error references, not values,
+        // when constructing the host error from a borrowed `Result`.
+        // Without this impl the contract fails to compile with an
+        // E0277 trait-bound error.
+        soroban_sdk::Error::from_contract_error(*e as u32)
+    }
 }
 
 // ============================================================================
@@ -666,12 +693,16 @@ impl RwaToken {
             .persistent()
             .set(&DataKey::Balance(to.clone()), &new_to);
         // Touch a TTL key so balances persist.
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::Balance(from.clone()), 172_800u32, 7_776_000u32);
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::Balance(to.clone()), 172_800u32, 7_776_000u32);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Balance(from.clone()),
+            172_800u32,
+            7_776_000u32,
+        );
+        env.storage().persistent().extend_ttl(
+            &DataKey::Balance(to.clone()),
+            172_800u32,
+            7_776_000u32,
+        );
         Ok(())
     }
 
@@ -679,8 +710,22 @@ impl RwaToken {
     // Version
     // --------------------------------------------------------------------
 
+    /// Return the contract semver as a Symbol. Dots are replaced with
+    /// underscores because Soroban Symbols only allow `[a-zA-Z0-9_]`.
     pub fn version() -> Symbol {
-        Symbol::new(&Env::default(), env!("CARGO_PKG_VERSION"))
+        // "0.1.0" -> "0_1_0"
+        const RAW: &str = env!("CARGO_PKG_VERSION");
+        // Build the symbol string at compile time by replacing '.' with '_'.
+        // We use a const-friendly approach: iterate and collect into a fixed buffer.
+        let mut buf = [0u8; 32];
+        let mut i = 0;
+        let bytes = RAW.as_bytes();
+        while i < bytes.len() && i < buf.len() {
+            buf[i] = if bytes[i] == b'.' { b'_' } else { bytes[i] };
+            i += 1;
+        }
+        let sym_str = core::str::from_utf8(&buf[..i]).unwrap_or("unknown");
+        Symbol::new(&Env::default(), sym_str)
     }
 }
 

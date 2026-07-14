@@ -15,14 +15,14 @@
 //! every deposit, and lets holders claim when convenient.
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
 };
 
 // ============================================================================
 // Errors
 // ============================================================================
 
-#[contracttype]
+#[contracterror]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum YieldError {
     NotInitialized = 1,
@@ -37,10 +37,31 @@ pub enum YieldError {
     MathOverflow = 7,
     /// The supplied amount was zero or negative.
     ZeroAmount = 8,
-    /// Claims are currently paused.
-    ClaimsPaused = 9,
-    /// Claim amount is below the minimum threshold.
-    BelowMinimumClaim = 10,
+}
+
+impl From<YieldError> for soroban_sdk::Error {
+    fn from(e: YieldError) -> Self {
+        // TODO: surface a typed error code in the host error once the
+        // soroban-sdk macro exposes the variant discriminant directly.
+        soroban_sdk::Error::from_contract_error(e as u32)
+    }
+}
+
+impl From<soroban_sdk::Error> for YieldError {
+    fn from(_e: soroban_sdk::Error) -> Self {
+        // TODO: map specific host error codes back to YieldError variants
+        // once the soroban-sdk macro exposes the contract error code.
+        YieldError::Unauthorized
+    }
+}
+
+impl From<&YieldError> for soroban_sdk::Error {
+    fn from(e: &YieldError) -> Self {
+        // The `#[contractimpl]` macro in soroban-sdk v22 calls
+        // `Into<soroban_sdk::Error>` on error references, not values,
+        // when constructing the host error from a borrowed `Result`.
+        soroban_sdk::Error::from_contract_error(*e as u32)
+    }
 }
 
 // ============================================================================
@@ -66,14 +87,6 @@ pub enum DataKey {
     TotalClaimed,
     /// Last funded ledger so the indexer can be idempotent.
     LastFundedAt,
-    /// Global pause flag for claims.
-    Paused,
-    /// Minimum claimable amount required to execute a claim.
-    MinClaimAmount,
-    /// Aggregate total of all funds deposited (analytics).
-    TotalFunded,
-    /// Number of funding events processed.
-    FundingCount,
 }
 
 // ============================================================================
@@ -113,10 +126,6 @@ impl YieldDistributor {
             .set(&DataKey::YieldPerShare, &0i128);
         env.storage().instance().set(&DataKey::TotalClaimed, &0i128);
         env.storage().instance().set(&DataKey::LastFundedAt, &0u64);
-        env.storage().instance().set(&DataKey::TotalFunded, &0i128);
-        env.storage().instance().set(&DataKey::FundingCount, &0u32);
-        env.storage().instance().set(&DataKey::Paused, &false);
-        env.storage().instance().set(&DataKey::MinClaimAmount, &0i128);
         env.events().publish(
             (symbol_short!("init"),),
             (admin, funder, share_token, payment_token),
@@ -265,48 +274,14 @@ impl YieldDistributor {
         env.storage()
             .instance()
             .set(&DataKey::LastFundedAt, &env.ledger().timestamp());
-        // Update analytics accumulators.
-        let total_funded: i128 = env
-            .storage()
-            .instance()
-            .get(&DataKey::TotalFunded)
-            .unwrap_or(0i128);
-        env.storage().instance().set(
-            &DataKey::TotalFunded,
-            &total_funded
-                .checked_add(amount)
-                .ok_or(YieldError::MathOverflow)?,
-        );
-        let count: u32 = env
-            .storage()
-            .instance()
-            .get(&DataKey::FundingCount)
-            .unwrap_or(0u32);
-        env.storage()
-            .instance()
-            .set(&DataKey::FundingCount, &count.saturating_add(1));
-
-        env.events().publish(
-            (symbol_short!("fund"),),
-            (funder, amount, new_yps),
-        );
+        env.events()
+            .publish((symbol_short!("fund"),), (funder, amount, new_yps));
         Ok(())
     }
 
     /// Pull-based claim: holder pulls their own yield.
     pub fn claim(env: Env, holder: Address) -> Result<i128, YieldError> {
         holder.require_auth();
-
-        // Check if claims are paused.
-        let paused: bool = env
-            .storage()
-            .instance()
-            .get(&DataKey::Paused)
-            .unwrap_or(false);
-        if paused {
-            return Err(YieldError::ClaimsPaused);
-        }
-
         let share_token = Self::share_token(env.clone())?;
         let token_client = token::TokenClient::new(&env, &share_token);
         let balance = token_client.balance(&holder);
@@ -314,17 +289,6 @@ impl YieldDistributor {
         if claimable <= 0 {
             return Err(YieldError::NothingToClaim);
         }
-
-        // Enforce minimum claim threshold.
-        let min_claim: i128 = env
-            .storage()
-            .instance()
-            .get(&DataKey::MinClaimAmount)
-            .unwrap_or(0i128);
-        if min_claim > 0 && claimable < min_claim {
-            return Err(YieldError::BelowMinimumClaim);
-        }
-
         let yps: i128 = env
             .storage()
             .instance()
@@ -357,42 +321,9 @@ impl YieldDistributor {
                 .ok_or(YieldError::MathOverflow)?,
         );
 
-        env.events().publish(
-            (symbol_short!("claim"), holder.clone()),
-            claimable,
-        );
+        env.events()
+            .publish((symbol_short!("claim"), holder.clone()), claimable);
         Ok(claimable)
-    }
-
-    // --------------------------------------------------------------------
-    // Batch operations
-    // --------------------------------------------------------------------
-
-    /// Batch claimable query for multiple holders.
-    pub fn claimable_batch(
-        env: Env,
-        holders: soroban_sdk::Vec<Address>,
-    ) -> soroban_sdk::Vec<i128> {
-        let mut results = soroban_sdk::Vec::new(&env);
-        for holder in holders.iter() {
-            let claimable = Self::claimable(env.clone(), holder.clone())
-                .unwrap_or(0i128);
-            results.push_back(claimable);
-        }
-        results
-    }
-
-    /// Batch claim for multiple holders (each claim must be authorised).
-    pub fn claim_batch(
-        env: Env,
-        holders: soroban_sdk::Vec<Address>,
-    ) -> Result<soroban_sdk::Vec<i128>, YieldError> {
-        let mut results = soroban_sdk::Vec::new(&env);
-        for holder in holders.iter() {
-            let amount = Self::claim(env.clone(), holder.clone())?;
-            results.push_back(amount);
-        }
-        Ok(results)
     }
 
     // --------------------------------------------------------------------
@@ -407,134 +338,6 @@ impl YieldDistributor {
             .ok_or(YieldError::NotInitialized)?;
         admin.require_auth();
         env.storage().instance().set(&DataKey::Funder, &new_funder);
-        Ok(())
-    }
-
-    /// Transfer admin role. Current admin only.
-    pub fn set_admin(env: Env, new_admin: Address) -> Result<(), YieldError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(YieldError::NotInitialized)?;
-        admin.require_auth();
-        env.storage().instance().set(&DataKey::Admin, &new_admin);
-        env.events()
-            .publish((symbol_short!("set_admin"),), new_admin);
-        Ok(())
-    }
-
-    /// Update the linked share token. Admin only.
-    pub fn set_share_token(env: Env, new_token: Address) -> Result<(), YieldError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(YieldError::NotInitialized)?;
-        admin.require_auth();
-        env.storage()
-            .instance()
-            .set(&DataKey::ShareToken, &new_token);
-        env.events()
-            .publish((symbol_short!("set_share_token"),), new_token);
-        Ok(())
-    }
-
-    /// Set the minimum claimable amount. Admin only.
-    pub fn set_min_claim(env: Env, min_amount: i128) -> Result<(), YieldError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(YieldError::NotInitialized)?;
-        admin.require_auth();
-        if min_amount < 0 {
-            return Err(YieldError::MathOverflow);
-        }
-        env.storage()
-            .instance()
-            .set(&DataKey::MinClaimAmount, &min_amount);
-        Ok(())
-    }
-
-    /// Read the minimum claim amount.
-    pub fn min_claim(env: Env) -> i128 {
-        env.storage()
-            .instance()
-            .get(&DataKey::MinClaimAmount)
-            .unwrap_or(0i128)
-    }
-
-    /// Pause all claims. Admin only.
-    pub fn pause(env: Env) -> Result<(), YieldError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(YieldError::NotInitialized)?;
-        admin.require_auth();
-        env.storage().instance().set(&DataKey::Paused, &true);
-        env.events().publish((symbol_short!("pause"),), ());
-        Ok(())
-    }
-
-    /// Resume claims. Admin only.
-    pub fn unpause(env: Env) -> Result<(), YieldError> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(YieldError::NotInitialized)?;
-        admin.require_auth();
-        env.storage().instance().set(&DataKey::Paused, &false);
-        env.events().publish((symbol_short!("unpause"),), ());
-        Ok(())
-    }
-
-    /// Query whether claims are paused.
-    pub fn paused(env: Env) -> bool {
-        env.storage()
-            .instance()
-            .get(&DataKey::Paused)
-            .unwrap_or(false)
-    }
-
-    /// Return aggregate total funded (analytics).
-    pub fn total_funded(env: Env) -> i128 {
-        env.storage()
-            .instance()
-            .get(&DataKey::TotalFunded)
-            .unwrap_or(0i128)
-    }
-
-    /// Return the number of funding events.
-    pub fn funding_count(env: Env) -> u32 {
-        env.storage()
-            .instance()
-            .get(&DataKey::FundingCount)
-            .unwrap_or(0u32)
-    }
-
-    /// Admin can withdraw surplus payment tokens (e.g. mis-sent tokens).
-    pub fn withdraw_surplus(
-        env: Env,
-        to: Address,
-        amount: i128,
-    ) -> Result<(), YieldError> {
-        if amount <= 0 {
-            return Err(YieldError::ZeroAmount);
-        }
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(YieldError::NotInitialized)?;
-        admin.require_auth();
-        let payment_token = Self::payment_token(env.clone())?;
-        let pay_client = token::TokenClient::new(&env, &payment_token);
-        pay_client.transfer(&env.current_contract_address(), &to, &amount);
-        env.events()
-            .publish((symbol_short!("withdraw"),), (to, amount));
         Ok(())
     }
 

@@ -15,7 +15,7 @@ authors = ["SolShare Network Contributors"]
 repository = "https://github.com/solshare-network/solshare-network"
 
 [workspace.dependencies]
-soroban-sdk = { version = "22.0.0", features = ["testutils"] }
+soroban-sdk = { version = "22.0.0" }
 soroban-token-sdk = { version = "22.0.0" }
 
 [profile.release]

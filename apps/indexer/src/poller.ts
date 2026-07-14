@@ -30,7 +30,8 @@ export async function startPoller(opts: PollerOpts): Promise<void> {
   }
   logger.info({ cursor }, 'poller: starting from ledger');
 
-  // eslint-disable-next-line no-constant-condition
+  // `no-constant-condition` has a documented exception for `while (true)`
+  // (legitimate infinite event loop), so no eslint-disable is needed here.
   while (true) {
     try {
       const batch = await soroban.getEvents({

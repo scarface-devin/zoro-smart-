@@ -8,7 +8,9 @@ import { Redis } from 'ioredis';
 import { env } from './env.js';
 import { logger } from './logger.js';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// `any` on private module state keeps the redis client untyped — fine for
+// a thin cache wrapper. `@typescript-eslint/no-explicit-any` is not enabled
+// in the recommended preset, so no eslint-disable is needed.
 let _redis: any = null;
 
 function buildRedis(): Redis | null {

@@ -196,6 +196,40 @@ there if you want to pick something up. The dashboard accepts an
 opt-in `?demo=1` flag so contributors can preview UI changes without
 standing up the API.
 
+### Project board + milestones
+
+The repository tracks work across three milestones that match the
+`Milestone:` field on every curated issue:
+
+| Milestone | Description |
+| --- | --- |
+| `v0.2` | Live Testnet |
+| `v0.3` | Cross-chain MVP |
+| `v0.4` | Drips Wave submission polish |
+
+Issues are also tagged with a `status:` label that mirrors a Kanban
+column:
+
+| Label | Column equivalent |
+| --- | --- |
+| `status: backlog` | Backlog |
+| `status: in progress` | In Progress |
+| `status: review` | Review |
+| `status: done` | Done |
+
+The full **`SolShare Roadmap`** project board (with the four columns
+above) needs to be created once via the GitHub web UI
+(Issues tab → Projects → New project → Board with Backlog / In
+Progress / Review / Done columns). The gh CLI integration used by
+`tools/scripts/setup-project-board.sh` does not have the `project`
+scope, so it creates the milestones + status labels + initial
+assignments but stops short of the board itself. The script is
+idempotent: once the board exists, re-run it to populate the
+columns. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full
+**Project bootstrap scripts** section (prerequisites, idempotency
+caveats, and the `create-issues.sh` companion script for re-creating
+the curated issue backlog from `docs/issues/`).
+
 ## Deploy
 
 * `pnpm deploy:testnet`     — installs all four contracts on Testnet.

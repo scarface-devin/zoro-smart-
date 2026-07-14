@@ -25,7 +25,9 @@ const schema = z.object({
 
 const parsed = schema.safeParse(process.env);
 if (!parsed.success) {
-  // eslint-disable-next-line no-console
+  // `no-console` allows `console.error` and `console.warn` by default
+  // (see https://eslint.org/docs/latest/rules/no-console), so no
+  // eslint-disable directive is needed here.
   console.error('Invalid environment variables:', parsed.error.flatten().fieldErrors);
   process.exit(1);
 }
