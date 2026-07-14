@@ -1,10 +1,18 @@
 import { NetworkError } from '@solshare/shared';
+import { CircuitBreaker, withRetry } from './retry.js';
 
 /**
  * Thin wrapper over Stellar Horizon REST endpoints. Avoids many bells &
  * whistles — exposes the surface used by the SolShare UI/dashboard.
+ *
+ * Each request is routed through a `CircuitBreaker` + `withRetry`, so a
+ * misbehaving Horizon stops being hammered without surfacing the same
+ * error to every caller.
  */
 export class HorizonClient {
+  /** Exposed so callers can share a single breaker across sub-clients. */
+  readonly breaker = new CircuitBreaker();
+
   constructor(public readonly horizonUrl: string) {}
 
   async serverInfo() {
@@ -63,10 +71,9 @@ export class HorizonClient {
     }>(`/transactions/${hash}`);
   }
 
-  private async get<T>(path: string, attempts = 3): Promise<T> {
-    let lastErr: unknown;
-    for (let i = 0; i < attempts; i++) {
-      try {
+  private async get<T>(path: string): Promise<T> {
+    return this.breaker.exec(() =>
+      withRetry(async () => {
         const res = await fetch(this.horizonUrl + path, {
           headers: { Accept: 'application/json' },
         });
@@ -75,13 +82,7 @@ export class HorizonClient {
           throw new NetworkError(`Horizon returned ${res.status}: ${body}`);
         }
         return (await res.json()) as T;
-      } catch (e) {
-        lastErr = e;
-        if (i < attempts - 1) {
-          await new Promise((r) => setTimeout(r, 2 ** i * 200));
-        }
-      }
-    }
-    throw lastErr instanceof Error ? lastErr : new NetworkError('Horizon request failed');
+      }),
+    );
   }
 }
