@@ -3,6 +3,7 @@ import { useStellar } from '../contexts/StellarProvider';
 import { ConnectButton } from './ConnectButton';
 import { NetworkPill } from './NetworkPill';
 import { NotificationBell } from './NotificationBell';
+import { SearchBar } from './SearchBar';
 import { Sun } from 'lucide-react';
 
 export function Header() {
@@ -46,6 +47,7 @@ export function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
+          <SearchBar />
           <NetworkPill />
           <NotificationBell />
           <ConnectButton compact={false} />
