@@ -258,7 +258,7 @@ impl RwaToken {
     // --------------------------------------------------------------------
 
     /// Mint new shares. Only the operator may call this (e.g. once a
-    /// crowdfunding round settles).
+    /// crowdfunding round settles). Respects the supply cap if set.
     pub fn mint(env: Env, to: Address, amount: i128) -> Result<(), TokenError> {
         if amount <= 0 {
             return Err(TokenError::ZeroAmount);
@@ -269,6 +269,21 @@ impl RwaToken {
             .get(&DataKey::Operator)
             .ok_or(TokenError::NotInitialized)?;
         operator.require_auth();
+        let total = env
+            .storage()
+            .instance()
+            .get(&DataKey::TotalSupply)
+            .unwrap_or(0i128);
+        let new_total = total.checked_add(amount).ok_or(TokenError::MathOverflow)?;
+        // Enforce supply cap if set (non-zero).
+        let cap: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::SupplyCap)
+            .unwrap_or(0i128);
+        if cap > 0 && new_total > cap {
+            return Err(TokenError::SupplyCapExceeded);
+        }
         let balance: i128 = env
             .storage()
             .persistent()
@@ -280,12 +295,6 @@ impl RwaToken {
         env.storage()
             .persistent()
             .set(&DataKey::Balance(to.clone()), &new_balance);
-        let total = env
-            .storage()
-            .instance()
-            .get(&DataKey::TotalSupply)
-            .unwrap_or(0i128);
-        let new_total = total.checked_add(amount).ok_or(TokenError::MathOverflow)?;
         env.storage()
             .instance()
             .set(&DataKey::TotalSupply, &new_total);
@@ -335,6 +344,24 @@ impl RwaToken {
         env.storage()
             .instance()
             .set(&DataKey::Operator, &new_operator);
+        env.events()
+            .publish((symbol_short!("set_operator"),), new_operator);
+        Ok(())
+    }
+
+    /// Transfer admin role to a new address. Current admin only.
+    pub fn set_admin(env: Env, new_admin: Address) -> Result<(), TokenError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(TokenError::NotInitialized)?;
+        admin.require_auth();
+        env.storage()
+            .instance()
+            .set(&DataKey::Admin, &new_admin);
+        env.events()
+            .publish((symbol_short!("set_admin"),), new_admin);
         Ok(())
     }
 
