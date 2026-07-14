@@ -18,7 +18,7 @@ export async function healthRoutes(app: FastifyInstance) {
         horizonRes.status === 'fulfilled' && sorobanRes.status === 'fulfilled'
           ? 'ok'
           : 'degraded',
-      version: '0.1.0',
+      version: '0.2.0',
       network: env.STELLAR_NETWORK,
       horizonReachable: horizonRes.status === 'fulfilled',
       sorobanReachable: sorobanRes.status === 'fulfilled',
