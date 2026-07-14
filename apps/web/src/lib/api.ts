@@ -87,6 +87,8 @@ export const api = {
     if (params.pageSize) qs.set('pageSize', String(params.pageSize));
     return request<PaginatedType<Notification>>(`/notifications?${qs.toString()}`);
   },
+  search: (q: string) =>
+    request<{ query: string; results: { id: string; type: string; title: string; subtitle: string; url: string }[]; total: number; tookMs: number }>(`/search?q=${encodeURIComponent(q)}`),
   notificationCount: (address: string) =>
     request<NotificationCount>(`/notifications/count?address=${encodeURIComponent(address)}`),
   markNotificationsRead: (body: { address: string; ids: string[]; markAll: boolean }) =>
