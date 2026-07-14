@@ -7,7 +7,7 @@
 //! ===========
 //! 1. Source-chain watcher(s) watch lock/transactions. For each lock, they
 //!    produce a signed message of the form:
-//!       (chain_id, source_tx_hash, sender, recipient, amount, nonce, dest_token)
+//!    `(chain_id, source_tx_hash, sender, recipient, amount, nonce, dest_token)`
 //! 2. A threshold set of validators signs each message.
 //! 3. The user (or relayer) submits that signed message to `wrap(...)` on the
 //!    Stellar bridge-wrapper. If the threshold of distinct validator
@@ -25,14 +25,15 @@
 //! wrapped token it manages (the rwa-token pattern is reused for this trick).
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Bytes, BytesN, Env, Map, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Bytes, BytesN, Env,
+    Map, Vec,
 };
 
 // ============================================================================
 // Errors
 // ============================================================================
 
-#[contracttype]
+#[contracterror]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BridgeError {
     NotInitialized = 1,
@@ -88,7 +89,7 @@ pub struct DepositMessage {
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct ValidatorSig {
-    pub validator: Address,
+    pub validator: BytesN<32>, // ed25519 public key of the validator
     pub signature: BytesN<64>,
 }
 
@@ -131,7 +132,7 @@ impl BridgeWrapper {
     pub fn set_validators(
         env: Env,
         chain_id: u32,
-        validators: Vec<Address>,
+        validators: Vec<BytesN<32>>,
         threshold: u32,
     ) -> Result<(), BridgeError> {
         Self::require_admin(&env)?;
@@ -144,14 +145,12 @@ impl BridgeWrapper {
         env.storage()
             .persistent()
             .set(&DataKey::Threshold(chain_id), &threshold);
-        env.events().publish(
-            (symbol_short!("valset"),),
-            (chain_id, threshold),
-        );
+        env.events()
+            .publish((symbol_short!("valset"),), (chain_id, threshold));
         Ok(())
     }
 
-    pub fn get_validators(env: Env, chain_id: u32) -> Vec<Address> {
+    pub fn get_validators(env: Env, chain_id: u32) -> Vec<BytesN<32>> {
         env.storage()
             .persistent()
             .get(&DataKey::Validators(chain_id))
@@ -228,7 +227,7 @@ impl BridgeWrapper {
         }
 
         // Distinct validator signature count with ed25519 verification.
-        let mut seen: Map<Address, bool> = Map::new(&env);
+        let mut seen: Map<BytesN<32>, bool> = Map::new(&env);
         let mut distinct = 0u32;
         let message_hash = Self::deposit_message_hash(&env, &deposit);
         for s in sigs.iter() {
@@ -239,12 +238,10 @@ impl BridgeWrapper {
                 continue;
             }
             // Real cryptographic verification: ed25519 over the canonical deposit hash.
-            // The validator public key is derived from the Stellar `Address` via
-            // `env.crypto().get_ed25519_pubkey(&s.validator)` which produces the
-            // underlying 32-byte key that signed the message.
-            let pk = env.crypto().get_ed25519_pubkey(&s.validator);
+            // `s.validator` is the raw 32-byte ed25519 public key.
+            let msg_bytes: Bytes = message_hash.clone().into();
             env.crypto()
-                .ed25519_verify(&pk, &message_hash, &s.signature);
+                .ed25519_verify(&s.validator, &msg_bytes, &s.signature);
             // If verification fails this invocation panics with the host
             // error, propagating back to the caller.
             seen.set(s.validator.clone(), true);
@@ -333,7 +330,7 @@ impl BridgeWrapper {
         Ok(())
     }
 
-    fn is_authorised_validator(set: &Vec<Address>, candidate: &Address) -> bool {
+    fn is_authorised_validator(set: &Vec<BytesN<32>>, candidate: &BytesN<32>) -> bool {
         for v in set.iter() {
             if &v == candidate {
                 return true;
@@ -364,11 +361,18 @@ impl BridgeWrapper {
         buf.extend_from_slice(&d.chain_id.to_le_bytes());
         buf.extend_from_slice(d.source_tx_hash.to_array().as_slice());
         buf.extend_from_slice(d.source_token.to_array().as_slice());
-        buf.extend_from_slice(d.sender.as_slice());
+        // Append sender bytes (variable-length opaque blob from source chain).
+        buf.append(&d.sender);
+        // Encode recipient as its strkey string, zero-padded to 56 bytes.
         let recipient_str = d.recipient.to_string();
+        let str_len = recipient_str.len() as usize; // soroban String::len() -> u32
         let mut recipient_bytes = [0u8; 56];
-        let copy_len = core::cmp::min(recipient_str.len(), recipient_bytes.len());
-        recipient_bytes[..copy_len].copy_from_slice(&recipient_str.as_bytes()[..copy_len]);
+        let copy_len = core::cmp::min(str_len, recipient_bytes.len());
+        // copy_into_slice writes exactly len() bytes; use a temporary buffer
+        // sized to the actual string length then copy into the fixed array.
+        let mut tmp = [0u8; 64];
+        recipient_str.copy_into_slice(&mut tmp[..str_len]);
+        recipient_bytes[..copy_len].copy_from_slice(&tmp[..copy_len]);
         buf.extend_from_slice(&recipient_bytes);
         buf.extend_from_slice(&d.amount.to_le_bytes());
         buf.extend_from_slice(&d.nonce.to_le_bytes());

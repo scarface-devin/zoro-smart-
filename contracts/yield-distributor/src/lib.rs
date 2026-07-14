@@ -15,14 +15,14 @@
 //! every deposit, and lets holders claim when convenient.
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
 };
 
 // ============================================================================
 // Errors
 // ============================================================================
 
-#[contracttype]
+#[contracterror]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum YieldError {
     NotInitialized = 1,
@@ -249,10 +249,8 @@ impl YieldDistributor {
         env.storage()
             .instance()
             .set(&DataKey::LastFundedAt, &env.ledger().timestamp());
-        env.events().publish(
-            (symbol_short!("fund"),),
-            (funder, amount, new_yps),
-        );
+        env.events()
+            .publish((symbol_short!("fund"),), (funder, amount, new_yps));
         Ok(())
     }
 
@@ -298,10 +296,8 @@ impl YieldDistributor {
                 .ok_or(YieldError::MathOverflow)?,
         );
 
-        env.events().publish(
-            (symbol_short!("claim"), holder.clone()),
-            claimable,
-        );
+        env.events()
+            .publish((symbol_short!("claim"), holder.clone()), claimable);
         Ok(claimable)
     }
 

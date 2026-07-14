@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Lock-and-mint + burn-and-release cross-chain wrapper for bridging EVM, Solana, and other assets onto Stellar."
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 soroban-sdk = { workspace = true }
@@ -16,6 +16,3 @@ soroban-sdk = { workspace = true }
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 
-[[test]]
-name = "test"
-path = "src/test.rs"

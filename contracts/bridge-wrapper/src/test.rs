@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{testutils::Address as _, BytesN, Env};
+use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
 
 #[test]
 fn test_initialize_stores_admin() {
@@ -22,9 +22,9 @@ fn test_set_validators_then_get_round_trip() {
     env.mock_all_auths();
     let contract_id = env.register(BridgeWrapper, ());
     let admin = Address::generate(&env);
-    let v1 = Address::generate(&env);
-    let v2 = Address::generate(&env);
-    let v3 = Address::generate(&env);
+    let v1 = BytesN::from_array(&env, &[1u8; 32]);
+    let v2 = BytesN::from_array(&env, &[2u8; 32]);
+    let v3 = BytesN::from_array(&env, &[3u8; 32]);
 
     let client = BridgeWrapperClient::new(&env, &contract_id);
     client.initialize(&admin);
@@ -46,8 +46,8 @@ fn test_set_validators_rejects_bad_threshold() {
     env.mock_all_auths();
     let contract_id = env.register(BridgeWrapper, ());
     let admin = Address::generate(&env);
-    let v1 = Address::generate(&env);
-    let v2 = Address::generate(&env);
+    let v1 = BytesN::from_array(&env, &[1u8; 32]);
+    let v2 = BytesN::from_array(&env, &[2u8; 32]);
 
     let client = BridgeWrapperClient::new(&env, &contract_id);
     client.initialize(&admin);

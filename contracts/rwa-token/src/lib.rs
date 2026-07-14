@@ -9,7 +9,7 @@
 //! can mint shares sold in a crowdfunding round.
 
 use soroban_sdk::{
-    contract, contractimpl, contracterror, contracttype, symbol_short, Address, Env, String, Symbol,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol,
 };
 
 // ============================================================================
@@ -359,12 +359,16 @@ impl RwaToken {
             .persistent()
             .set(&DataKey::Balance(to.clone()), &new_to);
         // Touch a TTL key so balances persist.
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::Balance(from.clone()), 172_800u32, 7_776_000u32);
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::Balance(to.clone()), 172_800u32, 7_776_000u32);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Balance(from.clone()),
+            172_800u32,
+            7_776_000u32,
+        );
+        env.storage().persistent().extend_ttl(
+            &DataKey::Balance(to.clone()),
+            172_800u32,
+            7_776_000u32,
+        );
         Ok(())
     }
 
@@ -372,8 +376,22 @@ impl RwaToken {
     // Version
     // --------------------------------------------------------------------
 
+    /// Return the contract semver as a Symbol. Dots are replaced with
+    /// underscores because Soroban Symbols only allow `[a-zA-Z0-9_]`.
     pub fn version() -> Symbol {
-        Symbol::new(&Env::default(), env!("CARGO_PKG_VERSION"))
+        // "0.1.0" -> "0_1_0"
+        const RAW: &str = env!("CARGO_PKG_VERSION");
+        // Build the symbol string at compile time by replacing '.' with '_'.
+        // We use a const-friendly approach: iterate and collect into a fixed buffer.
+        let mut buf = [0u8; 32];
+        let mut i = 0;
+        let bytes = RAW.as_bytes();
+        while i < bytes.len() && i < buf.len() {
+            buf[i] = if bytes[i] == b'.' { b'_' } else { bytes[i] };
+            i += 1;
+        }
+        let sym_str = core::str::from_utf8(&buf[..i]).unwrap_or("unknown");
+        Symbol::new(&Env::default(), sym_str)
     }
 }
 

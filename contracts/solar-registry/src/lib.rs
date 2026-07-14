@@ -9,7 +9,7 @@
 //!   `Decommissioned` — physical removal; admin-signed only.
 
 use soroban_sdk::{
-    contract, contractimpl, contracterror, contracttype, symbol_short, Address, BytesN, Env,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, BytesN, Env,
     String, Vec,
 };
 
@@ -259,10 +259,8 @@ impl SolarRegistry {
         env.storage()
             .persistent()
             .set(&DataKey::Array(id.clone()), &array);
-        env.events().publish(
-            (symbol_short!("update"), id),
-            new_status,
-        );
+        env.events()
+            .publish((symbol_short!("update"), id), new_status);
         Ok(())
     }
 
