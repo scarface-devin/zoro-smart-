@@ -27,6 +27,8 @@ pub enum RegistryError {
     ArrayAlreadyExists = 5,
     InvalidStateTransition = 6,
     EmptyArrayId = 7,
+    /// Maintenance event not found.
+    MaintenanceEventNotFound = 8,
 }
 
 // ============================================================================
@@ -95,6 +97,14 @@ pub struct SolarArray {
 // ============================================================================
 
 #[contracttype]
+#[derive(Clone, Debug)]
+pub struct MaintenanceEvent {
+    pub timestamp: u64,
+    pub description: String,
+    pub performed_by: Address,
+}
+
+#[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
     /// Registry admin (protocol governance).
@@ -105,6 +115,8 @@ pub enum DataKey {
     Array(BytesN<32>),
     /// Index of all array ids for enumeration.
     Index,
+    /// Maintenance event log per array (Vec<MaintenanceEvent>).
+    MaintenanceLog(BytesN<32>),
 }
 
 // ============================================================================
@@ -286,6 +298,145 @@ impl SolarRegistry {
             .get(&DataKey::Array(array_id.clone()))
             .ok_or(RegistryError::ArrayNotFound)?;
         array.token_contract = Some(token_contract);
+        array.last_updated = env.ledger().timestamp();
+        env.storage()
+            .persistent()
+            .set(&DataKey::Array(array_id), &array);
+        Ok(())
+    }
+
+    /// Remove the token binding for an array. Verifier only.
+    pub fn unbind_token(
+        env: Env,
+        array_id: BytesN<32>,
+    ) -> Result<(), RegistryError> {
+        let verifier: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Verifier)
+            .ok_or(RegistryError::NotInitialized)?;
+        verifier.require_auth();
+        let mut array: SolarArray = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Array(array_id.clone()))
+            .ok_or(RegistryError::ArrayNotFound)?;
+        array.token_contract = None;
+        array.last_updated = env.ledger().timestamp();
+        env.storage()
+            .persistent()
+            .set(&DataKey::Array(array_id), &array);
+        Ok(())
+    }
+
+    // --------------------------------------------------------------------
+    // Admin helpers
+    // --------------------------------------------------------------------
+
+    /// Transfer admin role. Current admin only.
+    pub fn set_admin(env: Env, new_admin: Address) -> Result<(), RegistryError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(RegistryError::NotInitialized)?;
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::Admin, &new_admin);
+        env.events()
+            .publish((symbol_short!("set_admin"),), new_admin);
+        Ok(())
+    }
+
+    /// Update the verifier address. Admin only.
+    pub fn set_verifier(env: Env, new_verifier: Address) -> Result<(), RegistryError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(RegistryError::NotInitialized)?;
+        admin.require_auth();
+        env.storage()
+            .instance()
+            .set(&DataKey::Verifier, &new_verifier);
+        env.events()
+            .publish((symbol_short!("set_verifier"),), new_verifier);
+        Ok(())
+    }
+
+    // --------------------------------------------------------------------
+    // Array metadata updates
+    // --------------------------------------------------------------------
+
+    /// Update an array's name and metadata URI. Verifier only.
+    pub fn update_array_metadata(
+        env: Env,
+        array_id: BytesN<32>,
+        name: String,
+        metadata_uri: String,
+    ) -> Result<(), RegistryError> {
+        let verifier: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Verifier)
+            .ok_or(RegistryError::NotInitialized)?;
+        verifier.require_auth();
+        let mut array: SolarArray = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Array(array_id.clone()))
+            .ok_or(RegistryError::ArrayNotFound)?;
+        array.name = name;
+        array.metadata_uri = metadata_uri;
+        array.last_updated = env.ledger().timestamp();
+        env.storage()
+            .persistent()
+            .set(&DataKey::Array(array_id), &array);
+        Ok(())
+    }
+
+    /// Update the geo-location of an array. Verifier only.
+    pub fn update_location(
+        env: Env,
+        array_id: BytesN<32>,
+        location: GeoLocation,
+    ) -> Result<(), RegistryError> {
+        let verifier: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Verifier)
+            .ok_or(RegistryError::NotInitialized)?;
+        verifier.require_auth();
+        let mut array: SolarArray = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Array(array_id.clone()))
+            .ok_or(RegistryError::ArrayNotFound)?;
+        array.location = location;
+        array.last_updated = env.ledger().timestamp();
+        env.storage()
+            .persistent()
+            .set(&DataKey::Array(array_id), &array);
+        Ok(())
+    }
+
+    /// Update the environmental impact metrics. Verifier only.
+    pub fn update_environmental_impact(
+        env: Env,
+        array_id: BytesN<32>,
+        impact: EnvironmentalImpact,
+    ) -> Result<(), RegistryError> {
+        let verifier: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Verifier)
+            .ok_or(RegistryError::NotInitialized)?;
+        verifier.require_auth();
+        let mut array: SolarArray = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Array(array_id.clone()))
+            .ok_or(RegistryError::ArrayNotFound)?;
+        array.impact = impact;
         array.last_updated = env.ledger().timestamp();
         env.storage()
             .persistent()
