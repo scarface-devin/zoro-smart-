@@ -44,8 +44,19 @@ export interface SolarArraySummary {
 }
 
 export interface SolarArrayDetail extends SolarArraySummary {
-  /** Latest on-chain ledger timestamp. */
   ledgerTimestamp: number;
-  /** Whether the array is currently accepting new investments. */
   acceptingInvestors: boolean;
+}
+
+export interface MaintenanceEvent {
+  timestamp: number;
+  description: string;
+  performedBy: string;
+}
+
+export interface ArrayCountByStatus {
+  Pending: number;
+  Active: number;
+  Maintenance: number;
+  Decommissioned: number;
 }
