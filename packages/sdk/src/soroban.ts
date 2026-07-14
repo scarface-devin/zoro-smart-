@@ -1,4 +1,5 @@
 import { NetworkError } from '@solshare/shared';
+import { CircuitBreaker, withRetry } from './retry.js';
 
 export interface SorobanEvent {
   type: 'contract';
@@ -13,12 +14,18 @@ export interface SorobanEvent {
  * Minimal Soroban JSON-RPC client. For a production deployment you would
  * use the official @stellar/stellar-sdk `Server` from
  * `rpc.Server`; this client exposes only the endpoints we use.
+ *
+ * Every RPC call is wrapped in `withRetry` + a shared `CircuitBreaker` so a
+ * single unhealthy endpoint doesn't melt the caller.
  */
 export class SorobanClient {
+  /** Exposed so callers can share or reset the breaker across sub-clients. */
+  readonly breaker = new CircuitBreaker();
+
   constructor(public readonly rpcUrl: string) {}
 
   async getLedger(sequence: number) {
-    return this.rpc<{
+    return this.call<{
       id: string;
       sequence: number;
       protocolVersion: string;
@@ -33,14 +40,14 @@ export class SorobanClient {
     topics?: string[];
     limit?: number;
   }) {
-    return this.rpc<{
+    return this.call<{
       events: SorobanEvent[];
       latestLedger: number;
     }>('getEvents', opts);
   }
 
   async getTransaction(hash: string) {
-    return this.rpc<{
+    return this.call<{
       status: 'SUCCESS' | 'FAILED' | 'NOT_FOUND';
       latestLedger: number;
       latestLedgerCloseTime: string;
@@ -57,7 +64,7 @@ export class SorobanClient {
    * Returns the Soroban simulation result.
    */
   async simulateTransaction(transactionEnvelopeBase64: string) {
-    return this.rpc<{
+    return this.call<{
       transactionData: string;
       minResourceFee: string;
       cost: { cpuInsns: string; memBytes: string };
@@ -67,11 +74,15 @@ export class SorobanClient {
   }
 
   async sendTransaction(transactionEnvelopeBase64: string) {
-    return this.rpc<{
+    return this.call<{
       status: 'PENDING' | 'DUPLICATE' | 'TRY_AGAIN_LATER' | 'ERROR';
       hash: string;
       latestLedger: number;
     }>('sendTransaction', { transaction: transactionEnvelopeBase64 });
+  }
+
+  private async call<T>(method: string, params: Record<string, unknown>): Promise<T> {
+    return this.breaker.exec(() => withRetry(() => this.rpc<T>(method, params)));
   }
 
   private async rpc<T>(method: string, params: Record<string, unknown>): Promise<T> {
