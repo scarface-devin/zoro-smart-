@@ -15,6 +15,7 @@ export function getClient(): SolShareClient {
         solarRegistry: process.env.SOLSHARE_REGISTRY_CONTRACT ?? '',
         yieldDistributor: process.env.SOLSHARE_DISTRIBUTOR_CONTRACT ?? '',
         bridgeWrapper: process.env.SOLSHARE_BRIDGE_CONTRACT ?? '',
+        governance: process.env.SOLSHARE_GOVERNANCE_CONTRACT ?? '',
       },
     });
   }
