@@ -10,8 +10,9 @@ description = "Lock-and-mint + burn-and-release cross-chain wrapper for bridging
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-testutils = ["soroban-sdk/testutils"]
-
 [dependencies]
 soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+

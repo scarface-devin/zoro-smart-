@@ -89,7 +89,7 @@ pub struct DepositMessage {
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct ValidatorSig {
-    pub validator: Address,
+    pub validator: BytesN<32>, // ed25519 public key of the validator
     pub signature: BytesN<64>,
 }
 
@@ -132,7 +132,7 @@ impl BridgeWrapper {
     pub fn set_validators(
         env: Env,
         chain_id: u32,
-        validators: Vec<Address>,
+        validators: Vec<BytesN<32>>,
         threshold: u32,
     ) -> Result<(), BridgeError> {
         Self::require_admin(&env)?;
@@ -150,7 +150,7 @@ impl BridgeWrapper {
         Ok(())
     }
 
-    pub fn get_validators(env: Env, chain_id: u32) -> Vec<Address> {
+    pub fn get_validators(env: Env, chain_id: u32) -> Vec<BytesN<32>> {
         env.storage()
             .persistent()
             .get(&DataKey::Validators(chain_id))
@@ -226,8 +226,8 @@ impl BridgeWrapper {
             return Err(BridgeError::UnknownChain);
         }
 
-        // Distinct validator signature count with Soroban auth verification.
-        let mut seen: Map<Address, bool> = Map::new(&env);
+        // Distinct validator signature count with ed25519 verification.
+        let mut seen: Map<BytesN<32>, bool> = Map::new(&env);
         let mut distinct = 0u32;
         for s in sigs.iter() {
             if !Self::is_authorised_validator(&validators, &s.validator) {
@@ -236,11 +236,13 @@ impl BridgeWrapper {
             if seen.contains_key(s.validator.clone()) {
                 continue;
             }
-            // Soroban-native auth: require the validator address to have
-            // authorised this transaction. In production, each validator
-            // calls this contract directly (or via a multi-sig policy); the
-            // host enforces that the address has provided a valid auth entry.
-            s.validator.require_auth();
+            // Real cryptographic verification: ed25519 over the canonical deposit hash.
+            // `s.validator` is the raw 32-byte ed25519 public key.
+            let msg_bytes: Bytes = message_hash.clone().into();
+            env.crypto()
+                .ed25519_verify(&s.validator, &msg_bytes, &s.signature);
+            // If verification fails this invocation panics with the host
+            // error, propagating back to the caller.
             seen.set(s.validator.clone(), true);
             distinct = distinct.saturating_add(1);
             if distinct >= threshold {
@@ -327,7 +329,7 @@ impl BridgeWrapper {
         Ok(())
     }
 
-    fn is_authorised_validator(set: &Vec<Address>, candidate: &Address) -> bool {
+    fn is_authorised_validator(set: &Vec<BytesN<32>>, candidate: &BytesN<32>) -> bool {
         for v in set.iter() {
             if &v == candidate {
                 return true;
@@ -357,26 +359,17 @@ impl BridgeWrapper {
     fn deposit_message_hash(env: &Env, d: &DepositMessage) -> BytesN<32> {
         let mut buf = Bytes::new(env);
         buf.extend_from_slice(&d.chain_id.to_le_bytes());
-        buf.extend_from_slice(&d.source_tx_hash.to_array());
-        buf.extend_from_slice(&d.source_token.to_array());
-        // Append sender bytes (variable-length Bytes) into a fixed 32-byte
-        // buffer so the canonical hash has a predictable shape.
-        // copy_into_slice requires a slice of exactly len() bytes.
-        let sender_len = d.sender.len() as usize;
-        let copy_len = core::cmp::min(sender_len, 32usize);
-        let mut sender_arr = [0u8; 32];
-        let mut tmp_sender = [0u8; 64];
-        d.sender.copy_into_slice(&mut tmp_sender[..sender_len]);
-        sender_arr[..copy_len].copy_from_slice(&tmp_sender[..copy_len]);
-        buf.extend_from_slice(&sender_arr);
-        // Encode the recipient Stellar address as its strkey representation
-        // into a fixed 56-byte buffer (G-address strkeys are 56 chars).
-        // String::copy_into_slice requires a slice of exactly len() bytes.
+        buf.extend_from_slice(d.source_tx_hash.to_array().as_slice());
+        buf.extend_from_slice(d.source_token.to_array().as_slice());
+        // Append sender bytes (variable-length opaque blob from source chain).
+        buf.append(&d.sender);
+        // Encode recipient as its strkey string, zero-padded to 56 bytes.
         let recipient_str = d.recipient.to_string();
-        let str_len = recipient_str.len() as usize;
-        let copy_len = core::cmp::min(str_len, 56usize);
+        let str_len = recipient_str.len() as usize; // soroban String::len() -> u32
         let mut recipient_bytes = [0u8; 56];
-        // Copy exactly str_len bytes into a temporary buffer, then take copy_len.
+        let copy_len = core::cmp::min(str_len, recipient_bytes.len());
+        // copy_into_slice writes exactly len() bytes; use a temporary buffer
+        // sized to the actual string length then copy into the fixed array.
         let mut tmp = [0u8; 64];
         recipient_str.copy_into_slice(&mut tmp[..str_len]);
         recipient_bytes[..copy_len].copy_from_slice(&tmp[..copy_len]);

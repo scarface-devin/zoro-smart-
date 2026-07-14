@@ -10,9 +10,9 @@ description = "Pull-payment yield distributor: distributes stablecoin revenue fr
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-testutils = ["soroban-sdk/testutils", "rwa-token/testutils"]
-
 [dependencies]
 soroban-sdk = { workspace = true }
-rwa-token = { path = "../rwa-token" }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+
