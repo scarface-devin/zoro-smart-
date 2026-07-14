@@ -11,6 +11,7 @@ const Bridge = lazy(() => import('./pages/Bridge.tsx'));
 const Yield = lazy(() => import('./pages/Yield.tsx'));
 const About = lazy(() => import('./pages/About.tsx'));
 const Governance = lazy(() => import('./pages/Governance.tsx'));
+const Portfolio = lazy(() => import('./pages/Portfolio.tsx'));
 
 export const router: ReturnType<typeof createBrowserRouter> = createBrowserRouter([
   {
@@ -45,6 +46,10 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
       {
         path: 'governance',
         element: <Suspense fallback={<RouteFallback />}><Governance /></Suspense>,
+      },
+      {
+        path: 'portfolio',
+        element: <Suspense fallback={<RouteFallback />}><Portfolio /></Suspense>,
       },
     ],
   },

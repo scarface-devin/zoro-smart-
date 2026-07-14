@@ -4,6 +4,9 @@ import type {
   BridgeTransaction,
   StatsResponse,
   StatsTimeseriesResponse,
+  GovernanceProposal,
+  GovernanceStats,
+  PortfolioSummary,
 } from '@solshare/shared';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -47,4 +50,30 @@ export const api = {
       paidYieldPerShare: string;
       globalYieldPerShare: string;
     }>(`/yield/${distributor}/${holder}`),
+  governanceProposals: (params: { status?: string; page?: number; pageSize?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.page) qs.set('page', String(params.page));
+    if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+    return request<Paginated<GovernanceProposal>>(`/governance/proposals?${qs.toString()}`);
+  },
+  governanceStats: () => request<GovernanceStats>('/governance/stats'),
+  createProposal: (body: {
+    title: string;
+    description: string;
+    proposalType: string;
+    proposer: string;
+    arrayId?: string | null;
+    payload?: Record<string, unknown>;
+  }) => request<{ operation: unknown; status: string }>('/governance/proposals', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }),
+  castVote: (body: { proposalId: string; voter: string; choice: string }) =>
+    request<{ operation: unknown; status: string }>('/governance/vote', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  portfolio: (holder: string) =>
+    request<PortfolioSummary>(`/portfolio?holder=${encodeURIComponent(holder)}`),
 };

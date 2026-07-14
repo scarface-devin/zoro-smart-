@@ -23,6 +23,7 @@ export function Header() {
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/arrays', label: 'Arrays' },
             { to: '/bridge', label: 'Bridge' },
+            { to: '/portfolio', label: 'Portfolio' },
             { to: '/yield', label: 'Yield' },
             { to: '/governance', label: 'Governance' },
             { to: '/about', label: 'About' },
