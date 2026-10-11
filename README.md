@@ -14,6 +14,21 @@ Stellar in seconds.
 
 ---
 
+## Platform & Network Support Matrix
+
+| Surface | Testnet | Mainnet | Source of truth |
+| --- | --- | --- | --- |
+| Stellar Horizon | ✅ | ✅ | `packages/shared/src/constants.ts` |
+| Soroban RPC | ✅ | ⏳ pending audit | `packages/shared/src/constants.ts` |
+| Ethereum bridge watcher | ⏳ scaffold | ❌ | `apps/indexer/src/watchers/eth.ts` (TBD) |
+| Solana bridge watcher | ❌ | ❌ | not started |
+| Polygon bridge watcher | ❌ | ❌ | not started |
+| Freighter wallet | ✅ | ✅ | `packages/sdk/src/wallet.ts` |
+| Albedo wallet | ⏳ scaffold | ❌ | not started |
+| Lobstr wallet | ❌ | ❌ | not started |
+
+---
+
 ## What's in the box
 
 ```
